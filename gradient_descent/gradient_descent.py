@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from itertools import combinations
 import pandas as pd
 
 def predict(weights, X):
@@ -17,9 +18,17 @@ def compute_gradient(X, y, weights):
 def normalize(X):
     mins = X.min(axis=0)
     maxs = X.max(axis=0)
-    return (X-mins) / (maxs-mins + 1e-8)
+    return (X-mins) / (maxs-mins + 1e-8), mins, maxs
 
 def prepare_data(data):
+    # полиномиальные признаки(Length^2, Diameter*Length, можно закоменьтировать тк роли особой не сыграло
+
+    numeric_cols = ["Length", "Diameter", "Height", "Whole_Weight", 
+                    "Shucked_Weight", "Viscera_Weight", "Shell_Weight"]
+    
+    for col in numeric_cols:    data[f"{col}^2"] = data[col] ** 2
+    for c1, c2 in combinations(numeric_cols, 2):    data[f"{c1}*{c2}"] = data[c1] * data[c2]
+
     data = pd.get_dummies(data, columns=["Sex"], dtype=float)
 
     y = data["Rings"].values.astype(float)
@@ -31,8 +40,8 @@ def prepare_data(data):
     X_train, X_test = X[indices[:split]], X[indices[split:]]
     y_train, y_test = y[indices[:split]], y[indices[split:]]
 
-    X_train = normalize(X_train)
-    X_test = normalize(X_test)
+    X_train, mins, maxs = normalize(X_train)
+    X_test = (X_test - mins) / (maxs - mins + 1e-8)
 
     X_train = np.column_stack([np.ones(len(X_train)), X_train])
     X_test = np.column_stack([np.ones(len(X_test)), X_test])
@@ -48,7 +57,7 @@ def evaluate(weights, X_test, y_test):
     print(f"MAE:  {mae:.4f}")
     print(f"{'Реальное'}     {'Предсказание'}      {'Ошибка'}")
     
-    id = np.random.choice(len(y_test), 10, replace=False)
+    id = np.random.choice(len(y_test), 15, replace=False)
     for i in id:
         err = y_pred[i]-y_test[i]
         print(f"{y_test[i]:>10.0f} {y_pred[i]:>14.2f} {err:>+10.2f}")
@@ -62,7 +71,9 @@ def plot_loss(losses):
     plt.grid(True)
     plt.show()
 
-def gradient_descent(X, y, lr=0.1, epochs=50):
+def gradient_descent(X, y, lr=0.045, epochs=20): 
+    # lr=0.04 ep=15 оптимальное для линейной модели 
+    # lr=0.045 ep=20 оптимальное для модели с полиномиальными признаками(стр 24)
     weights = np.zeros(X.shape[1])
     loses = []
 
@@ -79,17 +90,15 @@ def main():
 
     X_train, y_train, X_test, y_test = prepare_data(data)
 
-    print(f"X_train: {X_train.shape}")
-    print(f"y_train: {y_train.shape}")
-    print(f"X_test:  {X_test.shape}")
-    print(f"y_test:  {y_test.shape}")
-    print(f"Первая строка X_train:{X_train[0]}")
-    print(f"\nПервые 5 значений y_train: {y_train[:5]}")
+    # print(f"X_train: {X_train.shape}")
+    # print(f"y_train: {y_train.shape}")
+    # print(f"X_test:  {X_test.shape}")
+    # print(f"y_test:  {y_test.shape}")
 
     weights, loses = gradient_descent(X_train, y_train)
 
-    plot_loss(loses)
     evaluate(weights, X_test, y_test)
+    plot_loss(loses)
 
 if __name__ == "__main__":
     main()
