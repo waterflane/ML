@@ -41,8 +41,8 @@ def prepare_data(data):
 
     data = pd.get_dummies(data, columns=["Sex"], dtype=float)
 
-    y = xp.asarray(data["Rings"].values.astype(float))
-    X = xp.asarray(data.drop(columns=["Rings"]).values.astype(float))
+    y = xp.asarray(data["Shell_Weight"].values.astype(float))
+    X = xp.asarray(data.drop(columns=["Shell_Weight"]).values.astype(float))
 
     indices = xp.random.permutation(len(y))
     split = int(len(y)*0.9)
@@ -70,7 +70,7 @@ def evaluate(weights, X_test, y_test):
     id = xp.random.choice(len(y_test), 15, replace=False)
     for i in id:
         err = float(y_pred[i] - y_test[i])
-        print(f"{float(y_test[i]):>10.0f} {float(y_pred[i]):>14.2f} {err:>+10.2f}")
+        print(f"{float(y_test[i]):>10.4f} {float(y_pred[i]):>14.4f} {err:>+10.4f}")
 
 def plot_loss(losses):
     plt.figure()
@@ -81,8 +81,8 @@ def plot_loss(losses):
     plt.grid(True)
     plt.show()
 
-def gradient_descent(X, y, lr=0.04, epochs=1000): 
-    # lr: 0.04 оптимальное
+def gradient_descent(X, y, lr=0.3981071705534972, epochs=1000): 
+    # 0.3981071705534972 - оптимальный lr
     weights = xp.zeros(X.shape[1])
     loses = []
 
@@ -94,54 +94,57 @@ def gradient_descent(X, y, lr=0.04, epochs=1000):
     
     return weights, loses
 
-# def find_optimal_lr(X_train, y_train, X_test, y_test):
-#     lrs = xp.logspace(-4, -0.4, 200)
-#     best_lr = float(lrs[0])
-#     best_mse = float("inf")
-#     results = []
+def find_optimal_lr(X_train, y_train, X_test, y_test):
+    lrs = xp.logspace(-4, -0.4, 200)
+    best_lr = float(lrs[0])
+    best_mse = float("inf")
+    results = []
 
-#     for lr in lrs:
-#         lr_val = float(lr)
-#         weights, _ = gradient_descent(X_train, y_train, lr=lr_val, epochs=1000)
-#         y_pred = predict(weights, X_test)
-#         mse = compute_loss(y_test, y_pred)
+    for lr in lrs:
+        lr_val = float(lr)
+        weights, _ = gradient_descent(X_train, y_train, lr=lr_val, epochs=1000)
+        y_pred = predict(weights, X_test)
+        mse = compute_loss(y_test, y_pred)
 
-#         if xp.isnan(xp.asarray(mse)) or xp.isinf(xp.asarray(mse)):
-#             mse = float("inf")
+        if xp.isnan(xp.asarray(mse)) or xp.isinf(xp.asarray(mse)):
+            mse = float("inf")
 
-#         results.append((lr_val, mse))
-#         if mse < best_mse:
-#             best_mse = mse
-#             best_lr = lr_val
+        results.append((lr_val, mse))
+        if mse < best_mse:
+            best_mse = mse
+            best_lr = lr_val
 
-#     print(f"lr: {best_lr:.6f}  (MSE={best_mse:.4f})")
+    print(f"lr: {best_lr:.6f}  (MSE={best_mse:.4f})")
 
-#     valid = [(lr, mse) for lr, mse in results if mse < float("inf")]
-#     if valid:
-#         plt.figure()
-#         plt.plot([lr for lr, _ in valid], [mse for _, mse in valid], marker="o", markersize=3)
-#         plt.xscale("log")
-#         plt.xlabel("Learning Rate")
-#         plt.ylabel("MSE (test)")
-#         plt.title("Learning Rate vs MSE")
-#         plt.grid(True)
-#         plt.axvline(best_lr, color="r", linestyle="--", label=f"best={best_lr:.6f}")
-#         plt.legend()
-#         plt.show()
+    valid = [(lr, mse) for lr, mse in results if mse < float("inf")]
+    if valid:
+        plt.figure()
+        plt.plot([lr for lr, _ in valid], [mse for _, mse in valid], marker="o", markersize=3)
+        plt.xscale("log")
+        plt.xlabel("Learning Rate")
+        plt.ylabel("MSE (test)")
+        plt.title("Learning Rate vs MSE")
+        plt.grid(True)
+        plt.axvline(best_lr, color="r", linestyle="--", label=f"best={best_lr:.6f}")
+        plt.legend()
+        plt.show()
 
-#     return best_lr
+    return best_lr
 
 def main():
     data = pd.read_csv("data/Class_Abalone.csv")
 
     X_train, y_train, X_test, y_test = prepare_data(data)
 
+    # print(X_train[:5])
+    # print(y_test[:5])
     # print(f"X_train: {X_train.shape}")
     # print(f"y_train: {y_train.shape}")
     # print(f"X_test:  {X_test.shape}")
     # print(f"y_test:  {y_test.shape}")
 
     # lr = find_optimal_lr(X_train, y_train, X_test, y_test)
+    # print(lr)
 
     weights, loses = gradient_descent(X_train, y_train)
 
