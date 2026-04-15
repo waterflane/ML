@@ -1,18 +1,28 @@
-import numpy as np
+import numpy
 import matplotlib.pyplot as plt
 from itertools import combinations
 import pandas as pd
+
+# поменять USE_GPU на False, если надо на CPU
+# нужно установить cupy-cuda11x или cupy-cuda12x и иметь видеокарту nvidia с поддержкой cuda
+USE_GPU = False
+
+if USE_GPU:
+    import cupy
+    xp = cupy
+else:
+    xp = numpy
 
 def predict(weights, X):
     return X @ weights
 
 def compute_loss(y_true, y_pred):
-    return np.mean((y_true - y_pred) ** 2)
+    return float(xp.mean((y_true - y_pred) ** 2))
 
 def compute_gradient(X, y, weights):
     n = len(y)
     y_pred = X @ weights
-    gradient = (2/n) * (X.T @ (y_pred-y))
+    gradient = (2/n) * (X.T @ (y_pred - y))
     return gradient
 
 def normalize(X):
@@ -21,20 +31,18 @@ def normalize(X):
     return (X-mins) / (maxs-mins + 1e-8), mins, maxs
 
 def prepare_data(data):
-    # полиномиальные признаки(Length^2, Diameter*Length, можно закоменьтировать тк роли особой не сыграло
-
-    numeric_cols = ["Length", "Diameter", "Height", "Whole_Weight", 
-                    "Shucked_Weight", "Viscera_Weight", "Shell_Weight"]
-    
+    # полиномиальные признаки(Length^2, Diameter*Length), можно закоменьтировать тк роли особой не сыграло
+    numeric_cols = ["Length", "Diameter", "Height", "Whole_Weight", "Shucked_Weight", "Viscera_Weight", "Shell_Weight"]
     for col in numeric_cols:    data[f"{col}^2"] = data[col] ** 2
     for c1, c2 in combinations(numeric_cols, 2):    data[f"{c1}*{c2}"] = data[c1] * data[c2]
 
+
     data = pd.get_dummies(data, columns=["Sex"], dtype=float)
 
-    y = data["Rings"].values.astype(float)
-    X = data.drop(columns=["Rings"]).values.astype(float)
+    y = xp.asarray(data["Rings"].values.astype(float))
+    X = xp.asarray(data.drop(columns=["Rings"]).values.astype(float))
 
-    indices = np.random.permutation(len(y))
+    indices = xp.random.permutation(len(y))
     split = int(len(y)*0.9)
 
     X_train, X_test = X[indices[:split]], X[indices[split:]]
@@ -43,24 +51,24 @@ def prepare_data(data):
     X_train, mins, maxs = normalize(X_train)
     X_test = (X_test - mins) / (maxs - mins + 1e-8)
 
-    X_train = np.column_stack([np.ones(len(X_train)), X_train])
-    X_test = np.column_stack([np.ones(len(X_test)), X_test])
+    X_train = xp.column_stack([xp.ones(len(X_train)), X_train])
+    X_test = xp.column_stack([xp.ones(len(X_test)), X_test])
 
     return X_train, y_train, X_test, y_test
 
 def evaluate(weights, X_test, y_test):
     y_pred = predict(weights, X_test)
     mse = compute_loss(y_test, y_pred)
-    mae = np.mean(np.abs(y_test - y_pred))
+    mae = float(xp.mean(xp.abs(y_test - y_pred)))
 
     print(f"MSE:  {mse:.4f}")
     print(f"MAE:  {mae:.4f}")
     print(f"{'Реальное'}     {'Предсказание'}      {'Ошибка'}")
     
-    id = np.random.choice(len(y_test), 15, replace=False)
+    id = xp.random.choice(len(y_test), 15, replace=False)
     for i in id:
-        err = y_pred[i]-y_test[i]
-        print(f"{y_test[i]:>10.0f} {y_pred[i]:>14.2f} {err:>+10.2f}")
+        err = float(y_pred[i] - y_test[i])
+        print(f"{float(y_test[i]):>10.0f} {float(y_pred[i]):>14.2f} {err:>+10.2f}")
 
 def plot_loss(losses):
     plt.figure()
@@ -71,10 +79,9 @@ def plot_loss(losses):
     plt.grid(True)
     plt.show()
 
-def gradient_descent(X, y, lr=0.045, epochs=20): 
-    # lr=0.04 ep=15 оптимальное для линейной модели 
-    # lr=0.045 ep=20 оптимальное для модели с полиномиальными признаками(стр 24)
-    weights = np.zeros(X.shape[1])
+def gradient_descent(X, y, lr=0.08, epochs=1000): 
+    # lr=0.08 оптимальное
+    weights = xp.zeros(X.shape[1])
     loses = []
 
     for epoch in range(epochs):
