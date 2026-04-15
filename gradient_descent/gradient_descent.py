@@ -3,15 +3,17 @@ import matplotlib.pyplot as plt
 from itertools import combinations
 import pandas as pd
 
-# поменять USE_GPU на False, если надо на CPU
-# нужно установить cupy-cuda11x или cupy-cuda12x и иметь видеокарту nvidia с поддержкой cuda
-USE_GPU = False
+# поменять xp на cupy(раскомментировать ниже), если надо на видеокарте
+# Для GPU (NVIDIA):
+#   1. Установить CUDA Toolkit: https://developer.nvidia.com/cuda-downloads
+#   2. pip install cupy-cuda13x  (или cupy-cuda12x для CUDA 12)
+#   3. Установить переменные среды (если CuPy не находит CUDA):
+#      set CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\<версия>
+#      добавить в PATH: %CUDA_PATH%\bin\x64
 
-if USE_GPU:
-    import cupy
-    xp = cupy
-else:
-    xp = numpy
+import cupy
+xp = cupy
+# xp = numpy  # раскомментировать для CPU
 
 def predict(weights, X):
     return X @ weights
@@ -25,16 +27,16 @@ def compute_gradient(X, y, weights):
     gradient = (2/n) * (X.T @ (y_pred - y))
     return gradient
 
-def normalize(X):
-    mins = X.min(axis=0)
-    maxs = X.max(axis=0)
+def normalize(X): 
+    mins = X.min(axis=0) 
+    maxs = X.max(axis=0) 
     return (X-mins) / (maxs-mins + 1e-8), mins, maxs
 
 def prepare_data(data):
-    # полиномиальные признаки(Length^2, Diameter*Length), можно закоменьтировать тк роли особой не сыграло
-    numeric_cols = ["Length", "Diameter", "Height", "Whole_Weight", "Shucked_Weight", "Viscera_Weight", "Shell_Weight"]
-    for col in numeric_cols:    data[f"{col}^2"] = data[col] ** 2
-    for c1, c2 in combinations(numeric_cols, 2):    data[f"{c1}*{c2}"] = data[c1] * data[c2]
+    # полиномиальные признаки(Length^2, Diameter*Length), закоменьтировал тк они оказывается все портят
+    # numeric_cols = ["Length", "Diameter", "Height", "Whole_Weight", "Shucked_Weight", "Viscera_Weight", "Shell_Weight"]
+    # for col in numeric_cols:    data[f"{col}^2"] = data[col] ** 2
+    # for c1, c2 in combinations(numeric_cols, 2):    data[f"{c1}*{c2}"] = data[c1] * data[c2]
 
 
     data = pd.get_dummies(data, columns=["Sex"], dtype=float)
@@ -79,8 +81,8 @@ def plot_loss(losses):
     plt.grid(True)
     plt.show()
 
-def gradient_descent(X, y, lr=0.08, epochs=1000): 
-    # lr=0.08 оптимальное
+def gradient_descent(X, y, lr=0.04, epochs=1000): 
+    # lr: 0.04 оптимальное
     weights = xp.zeros(X.shape[1])
     loses = []
 
@@ -92,6 +94,43 @@ def gradient_descent(X, y, lr=0.08, epochs=1000):
     
     return weights, loses
 
+# def find_optimal_lr(X_train, y_train, X_test, y_test):
+#     lrs = xp.logspace(-4, -0.4, 200)
+#     best_lr = float(lrs[0])
+#     best_mse = float("inf")
+#     results = []
+
+#     for lr in lrs:
+#         lr_val = float(lr)
+#         weights, _ = gradient_descent(X_train, y_train, lr=lr_val, epochs=1000)
+#         y_pred = predict(weights, X_test)
+#         mse = compute_loss(y_test, y_pred)
+
+#         if xp.isnan(xp.asarray(mse)) or xp.isinf(xp.asarray(mse)):
+#             mse = float("inf")
+
+#         results.append((lr_val, mse))
+#         if mse < best_mse:
+#             best_mse = mse
+#             best_lr = lr_val
+
+#     print(f"lr: {best_lr:.6f}  (MSE={best_mse:.4f})")
+
+#     valid = [(lr, mse) for lr, mse in results if mse < float("inf")]
+#     if valid:
+#         plt.figure()
+#         plt.plot([lr for lr, _ in valid], [mse for _, mse in valid], marker="o", markersize=3)
+#         plt.xscale("log")
+#         plt.xlabel("Learning Rate")
+#         plt.ylabel("MSE (test)")
+#         plt.title("Learning Rate vs MSE")
+#         plt.grid(True)
+#         plt.axvline(best_lr, color="r", linestyle="--", label=f"best={best_lr:.6f}")
+#         plt.legend()
+#         plt.show()
+
+#     return best_lr
+
 def main():
     data = pd.read_csv("data/Class_Abalone.csv")
 
@@ -101,6 +140,8 @@ def main():
     # print(f"y_train: {y_train.shape}")
     # print(f"X_test:  {X_test.shape}")
     # print(f"y_test:  {y_test.shape}")
+
+    # lr = find_optimal_lr(X_train, y_train, X_test, y_test)
 
     weights, loses = gradient_descent(X_train, y_train)
 
