@@ -17,9 +17,8 @@ xp = cupy
 
 from network import NeuralNetwork
 
-
 def test_nn(weights, X_test, y_test, nn: NeuralNetwork):
-    y_pred = nn.predict(weights, X_test)
+    y_pred = nn.compute_y(X_test, weights)
     mse = nn.compute_loss(y_test, y_pred)
     mae = float(xp.mean(xp.abs(y_test - y_pred)))
 
@@ -44,12 +43,10 @@ def draw_loss(losses):
 
 def main():
     data = pd.read_csv("data/Class_Abalone.csv")
-    nn = NeuralNetwork(data)
+    nn = NeuralNetwork(data, cupy)
 
-
-    X_train, y_train, X_test, y_test = nn.prepare_data(data)
-
-    weights, loses = nn.gradient_descent(X_train, y_train)
+    weights, loses = nn.learning(lr=0.001, epochs=1000)
+    X_test, y_test = nn.X_test, nn.y_test
 
     test_nn(weights, X_test, y_test, nn)
     draw_loss(loses)

@@ -2,19 +2,19 @@ import numpy
 import matplotlib.pyplot as plt
 from itertools import combinations
 import pandas as pd
-from main import xp
 
 class NeuralNetwork:
-    def __init__(self, data):
+    def __init__(self, data, _ = numpy):
+        global xp
+        xp = _
         self.data = data
-        self.X_train, self.y_train, self.X_test, self.y_testself.prepare_data(data)
+        self.X_train, self.y_train, self.X_test, self.y_test = self.prepare_data(data)
 
-    def predict(self, weights, X):
-        return X @ weights
     def compute_loss(self, y_true, y_pred):
+        y_true = xp.asarray(y_true).reshape(-1)
+        y_pred = xp.asarray(y_pred).reshape(-1)
         return float(xp.mean((y_true - y_pred) ** 2))
     
-
     def normalize(self, X): 
         mins = X.min(axis=0) 
         maxs = X.max(axis=0) 
@@ -39,25 +39,45 @@ class NeuralNetwork:
 
         return X_train, y_train, X_test, y_test
     
+    
+    def compute_y(self, X,  weights):
+        first_l = X @ weights[0]
+        out = first_l @ weights[1]
+        return out.reshape(-1)
 
-    def compute_gradient(self, weights):
+    def compute_gradient(self, weights, lr):
         X, y = self.X_train, self.y_train
-
+        y = y.reshape(-1, 1)
         n = len(y)
-        y_pred = X @ weights
-        gradient = (2/n) * (X.T @ (y_pred - y))
-        return gradient
+
+        hidden = X @ weights[0]
+        y_pred = hidden @ weights[1]
+        dY = (2/n) * (y_pred - y)
+
+        dW2 = hidden.T @ dY
+        dHidden = dY @ weights[1].T
+        dW1 = X.T @ dHidden
+
+        weights[0] -= lr*dW1
+        weights[1] -= lr*dW2
+
+        return weights, y_pred.reshape(-1)
     
     def learning(self, lr=0.1, epochs=100):
         X, y = self.X_train, self.y_train
-        
-        weights = xp.zeros(X.shape[1])
+
+        n_input = X.shape[1]
+        n_hidden = 6
+        n_output = 1
+
+        W1 = xp.random.randn(n_input, n_hidden) 
+        W2 = xp.random.randn(n_hidden, n_output)
+
+        weights = [W1, W2]
         loses = []
 
         for epoch in range(epochs):
-            weights = weights - lr*self.compute_gradient(X, y, weights)
-            y_pred = X @ weights
-
+            weights, y_pred = self.compute_gradient(weights, lr)
             loses.append(self.compute_loss(y, y_pred))
         
         return weights, loses
